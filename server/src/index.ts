@@ -6,11 +6,18 @@ import session from '@fastify/session'
 import { authRoutes } from './routes/auth.js'
 import { jobRoutes } from './routes/jobs.js'
 import { sseRoutes } from './routes/sse.js'
+import { errorHandler } from './middleware/errorHandler.js'
+import { validateEnv } from './utils/validateEnv.js'
+import './jobs/queue.js'  // import side-effect: starts the BullMQ worker
+
+validateEnv()
 
 const server = Fastify({ logger: { level: 'info' } })
 
+server.setErrorHandler(errorHandler)
+
 await server.register(cors, {
-  origin: 'http://localhost:3000',
+  origin: process.env.CLIENT_URL ?? 'http://localhost:3000',
   credentials: true,
 })
 

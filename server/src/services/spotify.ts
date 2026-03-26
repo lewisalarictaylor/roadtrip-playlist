@@ -1,11 +1,17 @@
 import { fetch } from 'undici'
+import { query } from '../db/client.js'
 
 const CLIENT_ID     = process.env.SPOTIFY_CLIENT_ID!
 const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET!
 const REDIRECT_URI  = process.env.SPOTIFY_REDIRECT_URI!
 const SCOPES        = 'playlist-modify-public playlist-modify-private user-read-private'
 
-type TokenRow = { access_token: string; refresh_token: string; token_expires_at: string }
+type TokenRow = {
+  id: string
+  access_token: string
+  refresh_token: string
+  token_expires_at: string
+}
 
 // App-level token for unauthenticated searches (Client Credentials flow)
 let appToken: string | null = null
@@ -62,13 +68,22 @@ export const spotifyService = {
     return res.json() as Promise<{ access_token: string; expires_in: number }>
   },
 
-  // Ensure we have a fresh user token, refreshing if needed
+  // Get a valid user token, refreshing and persisting to DB if expired
   async getValidToken(user: TokenRow): Promise<string> {
     if (new Date(user.token_expires_at) > new Date(Date.now() + 60_000)) {
       return user.access_token
     }
-    const { access_token } = await this.refreshToken(user.refresh_token)
-    // Caller should persist the new token — simplified here
+
+    const { access_token, expires_in } = await this.refreshToken(user.refresh_token)
+
+    // Persist the new token so subsequent jobs don't need to refresh again
+    await query(
+      `UPDATE users
+       SET access_token = $1, token_expires_at = NOW() + $2 * INTERVAL '1 second'
+       WHERE id = $3`,
+      [access_token, expires_in, user.id]
+    )
+
     return access_token
   },
 
@@ -108,7 +123,6 @@ export const spotifyService = {
   },
 
   async addTracks(token: string, playlistId: string, uris: string[]) {
-    // Spotify max 100 URIs per request
     for (let i = 0; i < uris.length; i += 100) {
       await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
         method: 'POST',
