@@ -19,14 +19,17 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
+      req.log.info('OAuth callback: exchanging code for tokens')
       const tokens = await spotifyService.exchangeCode(code)
 
       if (!tokens.access_token) {
         req.log.error({ tokens }, 'Spotify token exchange returned no access_token')
         return reply.redirect('http://localhost:3000?error=spotify_token_failed')
       }
+      req.log.info('OAuth callback: token exchange OK, fetching profile')
 
       const profile = await spotifyService.getProfile(tokens.access_token)
+      req.log.info({ spotifyId: profile.id, name: profile.display_name }, 'OAuth callback: profile fetched')
 
       // Upsert user
       await query(
@@ -39,13 +42,16 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
            token_expires_at = EXCLUDED.token_expires_at`,
         [profile.id, profile.display_name, tokens.access_token, tokens.refresh_token, tokens.expires_in]
       )
+      req.log.info('OAuth callback: user upserted')
 
       const [user] = await query<{ id: string }>(
         'SELECT id FROM users WHERE spotify_id = $1', [profile.id]
       )
+      req.log.info({ userId: user?.id }, 'OAuth callback: user row fetched')
 
       ;(req.session as any).userId = user.id
       await req.session.save()
+      req.log.info({ sessionId: req.session.sessionId }, 'OAuth callback: session saved, redirecting to dashboard')
       return reply.redirect('http://localhost:3000/dashboard')
 
     } catch (err) {
