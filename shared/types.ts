@@ -19,6 +19,17 @@ export interface JobSettings {
   playlistVisibility: 'public' | 'private'
 }
 
+export const DEFAULT_SETTINGS: JobSettings = {
+  samplingIntervalKm: 20,
+  tracksPerArtist: 2,
+  maxArtistsPerCity: 3,
+  minArtistPopularity: 20,
+  genres: [],
+  playlistOrder: 'route',
+  fallbackToRegion: true,
+  playlistVisibility: 'private',
+}
+
 export interface CityResult {
   name: string
   routeOrder: number
@@ -56,13 +67,4 @@ export interface JobProgress {
   tracksAdded?: number
 }
 
-export const DEFAULT_SETTINGS: JobSettings = {
-  samplingIntervalKm: 20,
-  tracksPerArtist: 2,
-  maxArtistsPerCity: 3,
-  minArtistPopularity: 20,
-  genres: [],
-  playlistOrder: 'route',
-  fallbackToRegion: true,
-  playlistVisibility: 'private',
-}
+
