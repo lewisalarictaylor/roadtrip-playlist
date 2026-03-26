@@ -33,8 +33,9 @@ await server.register(session, {
   secret: process.env.SESSION_SECRET!,
   store: sessionStore,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // must be false when not using HTTPS in development
     httpOnly: true,
+    sameSite: 'lax',
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   },
 })
