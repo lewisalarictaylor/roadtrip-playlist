@@ -2,7 +2,7 @@ import { fetch } from 'undici'
 import PQueue from 'p-queue'
 import { query } from '../db/client.js'
 import { spotifyService } from './spotify.js'
-import type { ArtistResult, JobSettings } from '../../../shared/types.js'
+import type { ArtistResult, JobSettings } from '../shared/types.js'
 
 // MusicBrainz enforces 1 req/sec — p-queue handles throttling
 const mbQueue = new PQueue({ interval: 1100, intervalCap: 1 })
