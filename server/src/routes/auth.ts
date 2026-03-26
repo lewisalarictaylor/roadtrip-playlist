@@ -12,30 +12,46 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Step 2: Spotify redirects back here with ?code=...
   fastify.get('/spotify/callback', async (req, reply) => {
-    const { code } = req.query as { code?: string; error?: string }
-    if (!code) return reply.redirect('http://localhost:3000?error=spotify_denied')
+    const { code, error } = req.query as { code?: string; error?: string }
 
-    const tokens = await spotifyService.exchangeCode(code)
-    const profile = await spotifyService.getProfile(tokens.access_token)
+    if (error || !code) {
+      return reply.redirect('http://localhost:3000?error=spotify_denied')
+    }
 
-    // Upsert user
-    await query(
-      `INSERT INTO users (spotify_id, display_name, access_token, refresh_token, token_expires_at)
-       VALUES ($1, $2, $3, $4, NOW() + $5 * INTERVAL '1 second')
-       ON CONFLICT (spotify_id) DO UPDATE SET
-         display_name     = EXCLUDED.display_name,
-         access_token     = EXCLUDED.access_token,
-         refresh_token    = EXCLUDED.refresh_token,
-         token_expires_at = EXCLUDED.token_expires_at`,
-      [profile.id, profile.display_name, tokens.access_token, tokens.refresh_token, tokens.expires_in]
-    )
+    try {
+      const tokens = await spotifyService.exchangeCode(code)
 
-    const [user] = await query<{ id: string }>(
-      'SELECT id FROM users WHERE spotify_id = $1', [profile.id]
-    )
+      if (!tokens.access_token) {
+        req.log.error({ tokens }, 'Spotify token exchange returned no access_token')
+        return reply.redirect('http://localhost:3000?error=spotify_token_failed')
+      }
 
-    ;(req.session as any).userId = user.id
-    return reply.redirect('http://localhost:3000/dashboard')
+      const profile = await spotifyService.getProfile(tokens.access_token)
+
+      // Upsert user
+      await query(
+        `INSERT INTO users (spotify_id, display_name, access_token, refresh_token, token_expires_at)
+         VALUES ($1, $2, $3, $4, NOW() + $5 * INTERVAL '1 second')
+         ON CONFLICT (spotify_id) DO UPDATE SET
+           display_name     = EXCLUDED.display_name,
+           access_token     = EXCLUDED.access_token,
+           refresh_token    = EXCLUDED.refresh_token,
+           token_expires_at = EXCLUDED.token_expires_at`,
+        [profile.id, profile.display_name, tokens.access_token, tokens.refresh_token, tokens.expires_in]
+      )
+
+      const [user] = await query<{ id: string }>(
+        'SELECT id FROM users WHERE spotify_id = $1', [profile.id]
+      )
+
+      ;(req.session as any).userId = user.id
+      await req.session.save()
+      return reply.redirect('http://localhost:3000/dashboard')
+
+    } catch (err) {
+      req.log.error(err, 'Spotify OAuth callback failed')
+      return reply.redirect('http://localhost:3000?error=spotify_auth_failed')
+    }
   })
 
   fastify.get('/me', async (req, reply) => {

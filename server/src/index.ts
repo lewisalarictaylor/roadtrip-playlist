@@ -3,6 +3,8 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import cookie from '@fastify/cookie'
 import session from '@fastify/session'
+import { RedisStore } from 'connect-redis'
+import IORedis from 'ioredis'
 import { authRoutes } from './routes/auth.js'
 import { jobRoutes } from './routes/jobs.js'
 import { sseRoutes } from './routes/sse.js'
@@ -22,9 +24,19 @@ await server.register(cors, {
 })
 
 await server.register(cookie)
+
+// Use Redis to store sessions so they survive server restarts
+const redisClient = new IORedis(process.env.REDIS_URL!, { maxRetriesPerRequest: null })
+const sessionStore = new RedisStore({ client: redisClient, prefix: 'sess:' })
+
 await server.register(session, {
   secret: process.env.SESSION_SECRET!,
-  cookie: { secure: process.env.NODE_ENV === 'production', httpOnly: true },
+  store: sessionStore,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  },
 })
 
 await server.register(authRoutes, { prefix: '/api/auth' })
