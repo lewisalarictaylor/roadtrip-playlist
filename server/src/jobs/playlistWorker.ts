@@ -3,7 +3,7 @@ import { emitProgress } from './progress.js'
 import { mapsService } from '../services/maps.js'
 import { musicBrainzService } from '../services/musicbrainz.js'
 import { spotifyService } from '../services/spotify.js'
-import type { JobSettings, CityResult } from '../../shared/types.js'
+import type { JobSettings, CityResult } from '../../../shared/types.js'
 
 export async function runPlaylistJob(jobId: string, userId: string) {
   const setStatus = async (status: string, extra: Partial<Record<string, unknown>> = {}) => {
