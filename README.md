@@ -51,7 +51,7 @@ createdb roadtrip_playlist # maybe: sudo -u postgres createdb roadtrip_playlist
 Run the schema:
 
 ```bash
-psql roadtrip_playlist < server/src/db/schema.sql # sudo su postgres beforehand (hacky rather than wasting time setting up other users)
+psql roadtrip_playlist < server/src/db/schema.sql # sudo -u postgres beforehand (hacky rather than wasting time setting up other users)
 ```
 
 ---

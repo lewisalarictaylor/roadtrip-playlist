@@ -1,11 +1,12 @@
 import { useAuthStore } from '../store/auth.ts'
-import { useNavigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 
 export function HomePage() {
+  // loading is already resolved by App.tsx before this renders,
+  // so if user is set here we can redirect immediately without a flash.
   const { user } = useAuthStore()
-  const navigate = useNavigate()
 
-  if (user) { navigate('/dashboard'); return null }
+  if (user) return <Navigate to="/dashboard" replace />
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: 24 }}>
