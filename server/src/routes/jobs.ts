@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { query } from '../db/client.js'
 import { playlistQueue } from '../jobs/queue.js'
 import type { JobSettings } from '../../../shared/types'
-import { DEFAULT_SETTINGS } from '../../../shared/types'
+// import { DEFAULT_SETTINGS } from '../../../shared/types'
 
 export const jobRoutes: FastifyPluginAsync = async (fastify) => {
 
