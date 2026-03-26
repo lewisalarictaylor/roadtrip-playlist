@@ -45,13 +45,13 @@ This installs dependencies for both the `client` and `server` workspaces in one 
 Create a Postgres database:
 
 ```bash
-createdb roadtrip_playlist
+createdb roadtrip_playlist # maybe: sudo -u postgres createdb roadtrip_playlist
 ```
 
 Run the schema:
 
 ```bash
-psql roadtrip_playlist < server/src/db/schema.sql
+psql roadtrip_playlist < server/src/db/schema.sql # sudo su postgres beforehand (hacky rather than wasting time setting up other users)
 ```
 
 ---
