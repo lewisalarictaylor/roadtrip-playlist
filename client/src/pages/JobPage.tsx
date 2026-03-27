@@ -15,7 +15,10 @@ export function JobPage() {
     return stop
   }, [id])
 
-  const status = currentJob?.status ?? progress?.status ?? 'pending'
+  // Prefer live SSE progress status over the stale DB snapshot in currentJob.
+  // currentJob.status is only accurate at mount time and after completion —
+  // during generation, progress.status carries the real-time updates.
+  const status = progress?.status ?? currentJob?.status ?? 'pending'
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '48px 24px' }}>
