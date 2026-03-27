@@ -73,8 +73,9 @@ export const mapsService = {
       const name = data.results[0].address_components
         .find((c: any) => c.types.includes('locality') || c.types.includes('administrative_area_level_2'))
         ?.long_name
+        ?.trim()
 
-      if (name && !seen.has(name)) {
+      if (name && name.length > 0 && !seen.has(name)) {
         seen.add(name)
         cities.push({ name, mbid: null })
       }

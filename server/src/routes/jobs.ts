@@ -77,7 +77,24 @@ export const jobRoutes: FastifyPluginAsync = async (fastify) => {
       [req.params.id]
     )
 
-    return { ...job, cities }
+    // Map snake_case DB columns to camelCase to match the shared Job type
+    return {
+      id:                  job.id,
+      status:              job.status,
+      origin:              job.origin,
+      destination:         job.destination,
+      settings:            job.settings,
+      error:               job.error,
+      createdAt:           job.created_at,
+      spotifyPlaylistId:   job.spotify_playlist_id,
+      spotifyPlaylistUrl:  job.spotify_playlist_url,
+      cities: cities.map((c: any) => ({
+        name:       c.city_name,
+        routeOrder: c.route_order,
+        mbid:       c.mbid,
+        artists:    c.artists,
+      })),
+    }
   })
 
   // List all jobs for the current user
