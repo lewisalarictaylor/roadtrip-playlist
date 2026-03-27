@@ -35,7 +35,7 @@ export const musicBrainzService = {
   async getArtistsForCity(cityName: string, settings: JobSettings): Promise<ArtistResult[]> {
     // Check cache first
     const cached = await query<{ artists: ArtistResult[] }>(
-      'SELECT artists FROM artist_cache WHERE city_mbid = (SELECT id FROM artist_cache WHERE city_name = $1 LIMIT 1)',
+      'SELECT artists FROM artist_cache WHERE city_name = $1 LIMIT 1',
       [cityName]
     )
     if (cached.length && cached[0].artists) {
