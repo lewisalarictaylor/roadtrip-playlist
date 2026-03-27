@@ -19,7 +19,7 @@ const server = Fastify({ logger: { level: 'info' } })
 server.setErrorHandler(errorHandler)
 
 await server.register(cors, {
-  origin: process.env.CLIENT_URL ?? 'http://localhost:3000',
+  origin: process.env.CLIENT_URL ?? 'http://127.0.0.1:3000',
   credentials: true,
 })
 
