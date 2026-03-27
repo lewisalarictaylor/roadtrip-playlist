@@ -29,7 +29,10 @@ export async function runPlaylistJob(jobId: string, userId: string) {
     emitProgress({ jobId, status: 'geocoding', message: `Found ${cities.length} places`, citiesFound: cities.length })
 
     if (cities.length === 0) {
-      throw new Error('No cities could be extracted from this route. Try a longer route or smaller sampling interval.')
+      throw new Error(
+        'No towns or cities could be identified along this route. ' +
+        'Try reducing the sampling interval in settings, or check that your origin and destination are correct.'
+      )
     }
 
     // 3. Look up artists for each city
@@ -51,10 +54,25 @@ export async function runPlaylistJob(jobId: string, userId: string) {
       emitProgress({ jobId, status: 'artists', message: `${city.name}: ${artists.length} artist(s)`, artistsFound })
     }
 
+    // If no artists found at all, complete the job but flag it clearly —
+    // don't create an empty Spotify playlist, just mark it done with a warning.
+    if (artistsFound === 0) {
+      await query(
+        'UPDATE jobs SET status = $1, updated_at = NOW() WHERE id = $2',
+        ['complete', jobId]
+      )
+      emitProgress({
+        jobId,
+        status: 'complete',
+        message: 'No artists found along this route. Try adjusting your settings or choosing a different route.',
+        tracksAdded: 0,
+      })
+      return
+    }
+
     // 4. Create Spotify playlist and add tracks
     await setStatus('spotify', 'Building your Spotify playlist...')
 
-    // Fetch full user row including id so getValidToken can persist a refreshed token
     const [user] = await query<{ id: string; access_token: string; refresh_token: string; token_expires_at: string; spotify_id: string }>(
       'SELECT id, access_token, refresh_token, token_expires_at, spotify_id FROM users WHERE id = $1', [userId]
     )
@@ -86,13 +104,17 @@ export async function runPlaylistJob(jobId: string, userId: string) {
       }
     }
 
+    const summary = tracksAdded === 0
+      ? 'Playlist created but no tracks could be added — artists were found but none matched on Spotify.'
+      : `Playlist ready — ${tracksAdded} track${tracksAdded === 1 ? '' : 's'} added.`
+
     await query(
       `UPDATE jobs
        SET status = $1, spotify_playlist_id = $2, spotify_playlist_url = $3, updated_at = NOW()
        WHERE id = $4`,
       ['complete', playlist.id, playlist.external_urls.spotify, jobId]
     )
-    emitProgress({ jobId, status: 'complete', message: 'Playlist ready!', tracksAdded })
+    emitProgress({ jobId, status: 'complete', message: summary, tracksAdded })
 
   } catch (err: any) {
     await query(
