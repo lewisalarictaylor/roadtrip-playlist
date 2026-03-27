@@ -40,8 +40,12 @@ export async function runPlaylistJob(jobId: string, userId: string) {
     const cityResults: CityResult[] = []
     let artistsFound = 0
 
+    // Shared across all cities in this job — prevents duplicate Spotify API
+    // calls for the same artist name appearing near multiple cities on the route
+    const spotifySearchCache = new Map<string, any>()
+
     for (const [i, city] of cities.entries()) {
-      const artists = await musicBrainzService.getArtistsForCity(city.name, settings)
+      const artists = await musicBrainzService.getArtistsForCity(city.name, settings, spotifySearchCache)
       const result: CityResult = { name: city.name, routeOrder: i, mbid: city.mbid, artists }
       cityResults.push(result)
       artistsFound += artists.length
@@ -54,8 +58,7 @@ export async function runPlaylistJob(jobId: string, userId: string) {
       emitProgress({ jobId, status: 'artists', message: `${city.name}: ${artists.length} artist(s)`, artistsFound })
     }
 
-    // If no artists found at all, complete the job but flag it clearly —
-    // don't create an empty Spotify playlist, just mark it done with a warning.
+    // If no artists found at all, complete the job but flag it clearly
     if (artistsFound === 0) {
       await query(
         'UPDATE jobs SET status = $1, updated_at = NOW() WHERE id = $2',

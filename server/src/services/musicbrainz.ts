@@ -27,13 +27,29 @@ async function getAreaMbid(cityName: string): Promise<string | null> {
 }
 
 async function getArtistsByArea(areaMbid: string, limit = 25): Promise<any[]> {
-  const data = await mbFetch(`/artist?area=${areaMbid}&limit=${limit}&fmt=json`)
+  // inc=tags fetches genre/style tags alongside each artist
+  const data = await mbFetch(`/artist?area=${areaMbid}&limit=${limit}&fmt=json&inc=tags`)
   return data.artists ?? []
 }
 
+// Extract and normalise MusicBrainz tags to lowercase genre strings
+function extractGenres(artist: any): string[] {
+  if (!Array.isArray(artist.tags)) return []
+  return artist.tags
+    .filter((t: any) => t.count > 0)
+    .map((t: any) => t.name.toLowerCase().trim())
+}
+
 export const musicBrainzService = {
-  async getArtistsForCity(cityName: string, settings: JobSettings): Promise<ArtistResult[]> {
-    // Check cache first
+  // spotifySearchCache is passed in per-job so the same artist name is only
+  // looked up once even if they appear near multiple cities on the route
+  async getArtistsForCity(
+    cityName: string,
+    settings: JobSettings,
+    spotifySearchCache: Map<string, any>
+  ): Promise<ArtistResult[]> {
+
+    // Check DB cache first — returns full unfiltered artist list for this city
     const cached = await query<{ artists: ArtistResult[] }>(
       'SELECT artists FROM artist_cache WHERE city_name = $1 LIMIT 1',
       [cityName]
@@ -47,20 +63,30 @@ export const musicBrainzService = {
 
     const rawArtists = await getArtistsByArea(mbid)
 
-    // Resolve each artist against Spotify
+    // Resolve each artist against Spotify, using the per-job cache to avoid
+    // duplicate API calls for artists that appear near multiple cities
     const results: ArtistResult[] = []
     for (const artist of rawArtists) {
-      const spotifyMatch = await spotifyService.searchArtist(artist.name)
+      let spotifyMatch: any
+
+      if (spotifySearchCache.has(artist.name)) {
+        spotifyMatch = spotifySearchCache.get(artist.name)
+      } else {
+        spotifyMatch = await spotifyService.searchArtist(artist.name)
+        spotifySearchCache.set(artist.name, spotifyMatch)
+      }
+
       results.push({
-        mbid: artist.id,
-        name: artist.name,
+        mbid:      artist.id,
+        name:      artist.name,
+        genres:    extractGenres(artist),
         spotifyId: spotifyMatch?.id ?? null,
         spotifyUrl: spotifyMatch?.external_urls?.spotify ?? null,
         trackCount: 0,
       })
     }
 
-    // Cache the full unfiltered result
+    // Cache the full unfiltered result against the city MBID
     await query(
       `INSERT INTO artist_cache (city_mbid, city_name, artists)
        VALUES ($1, $2, $3)
@@ -74,6 +100,15 @@ export const musicBrainzService = {
 
 function filterAndLimitArtists(artists: ArtistResult[], settings: JobSettings): ArtistResult[] {
   let filtered = artists.filter(a => a.spotifyId !== null)
-  // Genre filtering would go here once we enrich artists with genre tags
+
+  // Genre filter — if the user has specified genres, only include artists
+  // who have at least one matching tag. Comparison is case-insensitive.
+  if (settings.genres.length > 0) {
+    const wanted = settings.genres.map(g => g.toLowerCase().trim())
+    filtered = filtered.filter(a =>
+      a.genres.some(g => wanted.some(w => g.includes(w) || w.includes(g)))
+    )
+  }
+
   return filtered.slice(0, settings.maxArtistsPerCity)
 }

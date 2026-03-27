@@ -29,6 +29,7 @@ export interface CityResult {
 export interface ArtistResult {
   mbid: string
   name: string
+  genres: string[]          // MusicBrainz tags, normalised to lowercase
   spotifyId: string | null
   spotifyUrl: string | null
   trackCount: number
