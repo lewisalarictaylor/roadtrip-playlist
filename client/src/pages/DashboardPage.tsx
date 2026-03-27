@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useJobStore } from '../store/job.ts'
 import { useAuthStore } from '../store/auth.ts'
@@ -9,10 +9,46 @@ export function DashboardPage() {
   const { createJob } = useJobStore()
   const navigate = useNavigate()
 
-  const [origin, setOrigin]           = useState('')
-  const [destination, setDestination] = useState('')
+  const [origin, setOrigin]             = useState('')
+  const [destination, setDestination]   = useState('')
   const [showSettings, setShowSettings] = useState(false)
-  const [loading, setLoading]         = useState(false)
+  const [loading, setLoading]           = useState(false)
+  const [previewUrl, setPreviewUrl]     = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Fetch a route preview whenever both fields have enough content.
+  // Debounced so we don't fire on every keystroke.
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    if (origin.trim().length < 3 || destination.trim().length < 3) {
+      setPreviewUrl(null)
+      return
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setPreviewLoading(true)
+      try {
+        const params = new URLSearchParams({ origin, destination })
+        const res = await fetch(`/api/preview?${params}`, { credentials: 'include' })
+        if (res.ok) {
+          const blob = await res.blob()
+          setPreviewUrl(URL.createObjectURL(blob))
+        } else {
+          setPreviewUrl(null)
+        }
+      } catch {
+        setPreviewUrl(null)
+      } finally {
+        setPreviewLoading(false)
+      }
+    }, 800)
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [origin, destination])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,6 +82,35 @@ export function DashboardPage() {
         <p style={{ fontSize: 12, color: '#999', margin: '-4px 0 0' }}>
           Include a country or region for best results — e.g. "Bristol, UK" rather than just "Bristol"
         </p>
+
+        {/* Route preview */}
+        {(previewUrl || previewLoading) && (
+          <div style={{
+            borderRadius: 10,
+            overflow: 'hidden',
+            border: '1px solid #eee',
+            background: '#f5f5f3',
+            aspectRatio: '640 / 300',
+            position: 'relative',
+          }}>
+            {previewLoading && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 13, color: '#999',
+              }}>
+                Loading map...
+              </div>
+            )}
+            {previewUrl && (
+              <img
+                src={previewUrl}
+                alt="Route preview"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: previewLoading ? 0 : 1, transition: 'opacity 0.2s' }}
+              />
+            )}
+          </div>
+        )}
 
         <button
           type="button"

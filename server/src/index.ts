@@ -8,6 +8,7 @@ import IORedis from 'ioredis'
 import { authRoutes } from './routes/auth.js'
 import { jobRoutes } from './routes/jobs.js'
 import { sseRoutes } from './routes/sse.js'
+import { previewRoutes } from './routes/preview.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { validateEnv } from './utils/validateEnv.js'
 import './jobs/queue.js'  // import side-effect: starts the BullMQ worker
@@ -40,9 +41,10 @@ await server.register(session, {
   },
 })
 
-await server.register(authRoutes, { prefix: '/api/auth' })
-await server.register(jobRoutes,  { prefix: '/api/jobs' })
-await server.register(sseRoutes,  { prefix: '/api/progress' })
+await server.register(authRoutes,    { prefix: '/api/auth' })
+await server.register(jobRoutes,     { prefix: '/api/jobs' })
+await server.register(sseRoutes,     { prefix: '/api/progress' })
+await server.register(previewRoutes, { prefix: '/api/preview' })
 
 server.get('/api/health', async () => ({ status: 'ok' }))
 
