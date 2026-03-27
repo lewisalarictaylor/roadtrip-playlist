@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { query } from '../db/client.js'
 import { playlistQueue } from '../jobs/queue.js'
 import { requireAuth } from '../middleware/requireAuth.js'
-import { DEFAULT_SETTINGS } from '../../../shared/types.ts'
+import { DEFAULT_SETTINGS } from '../../../shared/types.js'
 
 const createJobSchema = z.object({
   origin:      z.string().min(2).max(200),
