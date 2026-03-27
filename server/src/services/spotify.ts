@@ -114,19 +114,36 @@ export const spotifyService = {
     const normalise = (s: string) =>
       s.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim()
 
+    // Strip a leading "the " for comparison purposes — MusicBrainz and Spotify
+    // often differ on whether an act is listed as "The X" or just "X"
+    const stripThe = (s: string) => s.replace(/^the /, '')
+
     const normQuery = normalise(name)
+    const normQueryNoThe = stripThe(normQuery)
 
     for (const candidate of candidates) {
       const normResult = normalise(candidate.name)
-      // Accept exact match or if one contains the other (handles "The X" vs "X")
-      if (normResult === normQuery ||
-          normResult.includes(normQuery) ||
-          normQuery.includes(normResult)) {
+      const normResultNoThe = stripThe(normResult)
+
+      // Exact match with or without leading "the"
+      if (normResult === normQuery || normResultNoThe === normQueryNoThe) {
+        return candidate
+      }
+
+      // Substring match — only accept if names are close in length.
+      // Without the ratio check, "Frog" matches "Crazy Frog", "HEX" matches
+      // "HEXXENMIND", "Apostles" matches "Queen of Apostles" etc.
+      const longer  = Math.max(normResultNoThe.length, normQueryNoThe.length)
+      const shorter = Math.min(normResultNoThe.length, normQueryNoThe.length)
+      const ratio   = shorter / longer
+
+      if (ratio >= 0.6 &&
+          (normResultNoThe.includes(normQueryNoThe) ||
+           normQueryNoThe.includes(normResultNoThe))) {
         return candidate
       }
     }
 
-    // No sufficiently close match found
     return null
   },
 
