@@ -55,5 +55,3 @@ export interface JobProgress {
   artistsFound?: number
   tracksAdded?: number
 }
-
-export { DEFAULT_SETTINGS } from './defaults.js'

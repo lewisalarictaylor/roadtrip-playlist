@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Job, JobProgress, JobSettings } from '../../../shared/types.ts'
-import { DEFAULT_SETTINGS } from '../../../shared/types.ts'
+import { DEFAULT_SETTINGS } from '../../../shared/defaults.ts'
 
 interface JobStore {
   currentJob: Job | null

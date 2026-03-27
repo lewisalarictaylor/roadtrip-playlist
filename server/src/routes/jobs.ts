@@ -3,7 +3,19 @@ import { z } from 'zod'
 import { query } from '../db/client.js'
 import { playlistQueue } from '../jobs/queue.js'
 import { requireAuth } from '../middleware/requireAuth.js'
-import { DEFAULT_SETTINGS } from '../../../shared/defaults.js'
+import type { JobSettings } from '../../../shared/types.js'
+
+// Inlined here to avoid cross-package ESM resolution issues with tsx
+const DEFAULT_SETTINGS: JobSettings = {
+  samplingIntervalKm: 20,
+  tracksPerArtist: 2,
+  maxArtistsPerCity: 3,
+  minArtistPopularity: 20,
+  genres: [],
+  playlistOrder: 'route',
+  fallbackToRegion: true,
+  playlistVisibility: 'private',
+}
 
 const createJobSchema = z.object({
   origin:      z.string().min(2).max(200),
