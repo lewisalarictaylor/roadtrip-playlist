@@ -50,7 +50,20 @@ export const mapsService = {
     url.searchParams.set('key', API_KEY)
     const res = await fetch(url.toString())
     const data = await res.json() as any
-    if (data.status !== 'OK') throw new Error(`Directions API error: ${data.status}`)
+
+    if (data.status !== 'OK') {
+      const messages: Record<string, string> = {
+        ZERO_RESULTS:       `No route found between "${origin}" and "${destination}". Check the place names are correct and that a driveable route exists between them.`,
+        NOT_FOUND:          `One or both locations couldn't be found: "${origin}" → "${destination}". Try being more specific, e.g. adding a country name.`,
+        MAX_WAYPOINTS_EXCEEDED: 'Too many waypoints in this route.',
+        INVALID_REQUEST:    'The route request was invalid. Check your origin and destination.',
+        REQUEST_DENIED:     'Google Maps API request was denied. Check your API key.',
+        OVER_DAILY_LIMIT:   'Google Maps API daily quota exceeded.',
+        UNKNOWN_ERROR:      'Google Maps returned an unexpected error. Please try again.',
+      }
+      throw new Error(messages[data.status] ?? `Could not get directions (${data.status}).`)
+    }
+
     return data.routes[0].overview_polyline.points
   },
 
