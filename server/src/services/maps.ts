@@ -4,7 +4,7 @@ interface RoutePoint { lat: number; lng: number }
 interface CityPoint { name: string; mbid: string | null }
 
 // Decode Google's encoded polyline format into lat/lng points
-function decodePolyline(encoded: string): RoutePoint[] {
+export function decodePolyline(encoded: string): RoutePoint[] {
   const points: RoutePoint[] = []
   let index = 0, lat = 0, lng = 0
   while (index < encoded.length) {
@@ -20,7 +20,7 @@ function decodePolyline(encoded: string): RoutePoint[] {
 }
 
 // Haversine distance between two lat/lng points in km
-function distanceKm(a: RoutePoint, b: RoutePoint): number {
+export function distanceKm(a: RoutePoint, b: RoutePoint): number {
   const R = 6371
   const dLat = (b.lat - a.lat) * Math.PI / 180
   const dLng = (b.lng - a.lng) * Math.PI / 180
@@ -29,7 +29,7 @@ function distanceKm(a: RoutePoint, b: RoutePoint): number {
 }
 
 // Sample one point every `intervalKm` kilometres along the polyline
-function samplePoints(points: RoutePoint[], intervalKm: number): RoutePoint[] {
+export function samplePoints(points: RoutePoint[], intervalKm: number): RoutePoint[] {
   const sampled: RoutePoint[] = [points[0]]
   let accumulated = 0
   for (let i = 1; i < points.length; i++) {
