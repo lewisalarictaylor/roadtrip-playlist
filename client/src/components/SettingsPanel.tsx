@@ -33,7 +33,7 @@ export function SettingsPanel() {
       <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontSize: 13, fontWeight: 500 }}>Playlist order</span>
         <select value={settings.playlistOrder} onChange={e => updateSettings({ playlistOrder: e.target.value as any })}>
-          <option value="route">Route order (north to south)</option>
+          <option value="route">Route order</option>
           <option value="shuffle">Shuffled</option>
         </select>
       </label>
