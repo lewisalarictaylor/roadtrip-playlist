@@ -101,11 +101,33 @@ export const spotifyService = {
   async searchArtist(name: string): Promise<any | null> {
     const token = await getAppToken()
     const res = await fetch(
-      `https://api.spotify.com/v1/search?q=${encodeURIComponent(name)}&type=artist&limit=1`,
+      `https://api.spotify.com/v1/search?q=artist:${encodeURIComponent(name)}&type=artist&limit=5`,
       { headers: { Authorization: `Bearer ${token}` } }
     )
     const data = await res.json() as any
-    return data.artists?.items?.[0] ?? null
+    const candidates: any[] = data.artists?.items ?? []
+
+    // Validate the match — Spotify's search is fuzzy and will return a result
+    // even when the name is ambiguous or only loosely related. We normalise
+    // both names and require a close match before accepting the result,
+    // to avoid adding tracks from a completely different artist.
+    const normalise = (s: string) =>
+      s.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim()
+
+    const normQuery = normalise(name)
+
+    for (const candidate of candidates) {
+      const normResult = normalise(candidate.name)
+      // Accept exact match or if one contains the other (handles "The X" vs "X")
+      if (normResult === normQuery ||
+          normResult.includes(normQuery) ||
+          normQuery.includes(normResult)) {
+        return candidate
+      }
+    }
+
+    // No sufficiently close match found
+    return null
   },
 
   async getTopTrackUris(token: string, artistId: string, limit: number): Promise<string[]> {
