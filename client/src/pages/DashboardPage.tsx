@@ -37,12 +37,15 @@ export function DashboardPage() {
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 13, fontWeight: 500, color: '#444' }}>From</span>
-          <input value={origin} onChange={e => setOrigin(e.target.value)} placeholder="e.g. London" required />
+          <input value={origin} onChange={e => setOrigin(e.target.value)} placeholder="e.g. Liverpool, UK" required />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 13, fontWeight: 500, color: '#444' }}>To</span>
-          <input value={destination} onChange={e => setDestination(e.target.value)} placeholder="e.g. Edinburgh" required />
+          <input value={destination} onChange={e => setDestination(e.target.value)} placeholder="e.g. Edinburgh, UK" required />
         </label>
+        <p style={{ fontSize: 12, color: '#999', margin: '-4px 0 0' }}>
+          Include a country or region for best results — e.g. "Bristol, UK" rather than just "Bristol"
+        </p>
 
         <button
           type="button"
