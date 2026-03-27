@@ -29,9 +29,28 @@ async function getAreaMbid(cityName: string): Promise<string | null> {
 async function getArtistsByArea(areaMbid: string, limit = 100): Promise<any[]> {
   // Fetch a large pool — MusicBrainz returns alphabetically, so a small limit
   // would systematically favour artists starting with A-E over well-known acts
-  // further down the alphabet. We sort by Spotify popularity after resolving.
+  // further down the alphabet. We pre-score and trim before hitting Spotify.
   const data = await mbFetch(`/artist?area=${areaMbid}&limit=${limit}&fmt=json&inc=tags`)
   return data.artists ?? []
+}
+
+// Score an artist using only MusicBrainz data, before any Spotify calls.
+// Higher = more likely to be a well-known act worth resolving.
+// This lets us trim the candidate pool cheaply before the expensive Spotify step.
+function mbScore(artist: any): number {
+  let score = 0
+
+  // MusicBrainz attaches a relevance score to search results (0-100)
+  if (typeof artist.score === 'number') score += artist.score
+
+  // Total tag votes across all tags — more votes = more community attention
+  if (Array.isArray(artist.tags)) {
+    const tagTotal = artist.tags.reduce((n: number, t: any) => n + (t.count ?? 0), 0)
+    // Cap contribution so one massively-tagged artist doesn't dominate
+    score += Math.min(tagTotal, 50)
+  }
+
+  return score
 }
 
 // Extract and normalise MusicBrainz tags to lowercase genre strings
@@ -65,11 +84,21 @@ export const musicBrainzService = {
 
     const rawArtists = await getArtistsByArea(mbid)
 
-    // Resolve each artist against Spotify, capturing the popularity score.
-    // We use the per-job cache to avoid duplicate Spotify calls for the same
-    // artist name appearing near multiple cities on the route.
+    // Pre-score and trim using only MusicBrainz data — this avoids making
+    // Spotify calls for artists with no community signal at all.
+    // We take the top 30 by MusicBrainz score as the candidate pool,
+    // which keeps Spotify calls close to the original 25 while covering
+    // the full alphabet rather than just A-E.
+    const SPOTIFY_CANDIDATE_LIMIT = 30
+    const candidates = rawArtists
+      .map(a => ({ artist: a, score: mbScore(a) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, SPOTIFY_CANDIDATE_LIMIT)
+      .map(c => c.artist)
+
+    // Resolve each candidate against Spotify, capturing the popularity score.
     const results: ArtistResult[] = []
-    for (const artist of rawArtists) {
+    for (const artist of candidates) {
       let spotifyMatch: any
 
       if (spotifySearchCache.has(artist.name)) {
