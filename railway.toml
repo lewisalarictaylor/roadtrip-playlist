@@ -1,0 +1,25 @@
+[build]
+builder = "nixpacks"
+
+[[services]]
+name = "server"
+source = "server"
+
+[services.build]
+buildCommand = "npm install && npm run build"
+startCommand = "node dist/index.js"
+
+[services.deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+
+[[services]]
+name = "client"
+source = "client"
+
+[services.build]
+buildCommand = "npm install && npm run build"
+
+[services.deploy]
+staticDir = "dist"

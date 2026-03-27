@@ -45,13 +45,13 @@ This installs dependencies for both the `client` and `server` workspaces in one 
 Create a Postgres database:
 
 ```bash
-createdb roadtrip_playlist # maybe: sudo -u postgres createdb roadtrip_playlist
+createdb roadtrip_playlist
 ```
 
 Run the schema:
 
 ```bash
-psql roadtrip_playlist < server/src/db/schema.sql # sudo -u postgres beforehand (hacky rather than wasting time setting up other users)
+psql roadtrip_playlist < server/src/db/schema.sql
 ```
 
 ---
@@ -95,9 +95,9 @@ MUSICBRAINZ_CONTACT_URL=https://yourapp.com
 ### Getting your Google Maps API key
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com) and create a project
-2. Enable the **Directions API** and **Geocoding API**
+2. Enable the **Directions API**, **Geocoding API**, and **Maps Static API**
 3. Go to **APIs & Services → Credentials → Create credentials → API key**
-4. Optionally restrict the key to those two APIs only
+4. Optionally restrict the key to those three APIs only
 
 ### Getting your Spotify credentials
 
@@ -187,21 +187,92 @@ For high-traffic use, see the [MusicBrainz mirror documentation](https://musicbr
 
 ---
 
-## Building for production
+## Deploying to Railway
+
+Railway is the recommended host — it provisions Postgres and Redis with one click and deploys directly from GitHub.
+
+### 1. Create a Railway project
+
+1. Go to [railway.app](https://railway.app) and sign in with GitHub
+2. Click **New Project → Deploy from GitHub repo** and select this repository
+3. Railway will detect the `railway.toml` and configure the build automatically
+
+### 2. Add Postgres and Redis
+
+From your Railway project dashboard:
+
+1. Click **New** → **Database** → **PostgreSQL** — Railway links it automatically
+2. Click **New** → **Database** → **Redis** — same
+
+### 3. Run the database schema
+
+Once Postgres is provisioned, open a Railway shell or use the Railway CLI:
 
 ```bash
-npm run build
+railway run psql $DATABASE_URL < server/src/db/schema.sql
 ```
 
-This compiles the TypeScript server to `server/dist/` and bundles the React client to `client/dist/`.
+Or connect with any Postgres client using the `DATABASE_URL` from Railway's environment variables panel.
 
-To run the compiled server:
+### 4. Set environment variables
+
+In your Railway service settings, add these under **Variables**:
+
+```
+NODE_ENV=production
+SESSION_SECRET=        # generate with: openssl rand -hex 32
+CLIENT_URL=            # your Railway public URL, e.g. https://yourapp.up.railway.app
+GOOGLE_MAPS_API_KEY=
+SPOTIFY_CLIENT_ID=
+SPOTIFY_CLIENT_SECRET=
+SPOTIFY_REDIRECT_URI=  # https://yourapp.up.railway.app/api/auth/spotify/callback
+MUSICBRAINZ_APP_NAME=RoadtripPlaylist
+MUSICBRAINZ_APP_VERSION=1.0.0
+MUSICBRAINZ_CONTACT_URL=https://yourapp.up.railway.app
+```
+
+`DATABASE_URL` and `REDIS_URL` are injected automatically by Railway — you don't need to set those manually.
+
+### 5. Update Spotify redirect URI
+
+In the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard), add your Railway URL to the allowed Redirect URIs:
+
+```
+https://yourapp.up.railway.app/api/auth/spotify/callback
+```
+
+### 6. Deploy
+
+Push to your GitHub `main` branch — Railway deploys automatically on every push.
 
 ```bash
-cd server && node dist/index.js
+git push origin main
 ```
 
-Serve `client/dist/` via any static file host (Nginx, Caddy, Vercel, etc.) and point `SPOTIFY_REDIRECT_URI` and the Vite proxy at your production domain.
+### Early access / invite-only beta
+
+Your Spotify app starts in **Development Mode**, which limits access to 25 explicitly added users. This is ideal for a private beta — no invite system needed.
+
+To add testers:
+1. Go to your app in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. Click **Settings** → **User Management**
+3. Add testers by their Spotify email address
+
+When you're ready to open access to everyone, submit your app for a **Quota Extension** review in the same dashboard. Spotify reviews the app and grants production access if it meets their guidelines.
+
+---
+
+## Building locally for production
+
+To test a production build locally:
+
+```bash
+# Build client then server
+cd client && npm run build && cd ../server && npm run build
+
+# Run the server (it will serve the built client at /)
+NODE_ENV=production node server/dist/index.js
+```
 
 ---
 
@@ -213,6 +284,7 @@ Serve `client/dist/` via any static file host (Nginx, Caddy, Vercel, etc.) and p
 | Backend | Node.js, Fastify 4 |
 | Job queue | BullMQ + Redis |
 | Database | PostgreSQL |
-| Route data | Google Maps Directions + Geocoding APIs |
+| Route data | Google Maps Directions, Geocoding + Static Maps APIs |
 | Artist data | MusicBrainz |
 | Playlist | Spotify Web API |
+| Hosting | Railway |

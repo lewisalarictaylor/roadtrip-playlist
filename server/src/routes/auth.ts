@@ -15,7 +15,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     const { code, error } = req.query as { code?: string; error?: string }
 
     if (error || !code) {
-      return reply.redirect('http://127.0.0.1:3000?error=spotify_denied')
+      return reply.redirect(`${process.env.CLIENT_URL ?? 'http://127.0.0.1:3000'}?error=spotify_denied`)
     }
 
     try {
@@ -24,7 +24,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (!tokens.access_token) {
         req.log.error({ tokens }, 'Spotify token exchange returned no access_token')
-        return reply.redirect('http://127.0.0.1:3000?error=spotify_token_failed')
+        return reply.redirect(`${process.env.CLIENT_URL ?? 'http://127.0.0.1:3000'}?error=spotify_token_failed`)
       }
       req.log.info('OAuth callback: token exchange OK, fetching profile')
 
@@ -52,11 +52,11 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       ;(req.session as any).userId = user.id
       await req.session.save()
       req.log.info({ sessionId: req.session.sessionId }, 'OAuth callback: session saved, redirecting to dashboard')
-      return reply.redirect('http://127.0.0.1:3000/dashboard')
+      return reply.redirect(`${process.env.CLIENT_URL ?? 'http://127.0.0.1:3000'}/dashboard`)
 
     } catch (err) {
       req.log.error(err, 'Spotify OAuth callback failed')
-      return reply.redirect('http://127.0.0.1:3000?error=spotify_auth_failed')
+      return reply.redirect(`${process.env.CLIENT_URL ?? 'http://127.0.0.1:3000'}?error=spotify_auth_failed`)
     }
   })
 

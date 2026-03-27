@@ -3,19 +3,25 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import cookie from '@fastify/cookie'
 import session from '@fastify/session'
+import staticFiles from '@fastify/static'
 import RedisStore from 'connect-redis'
 import IORedis from 'ioredis'
+import { join } from 'path'
+import { fileURLToPath } from 'url'
 import { authRoutes } from './routes/auth.js'
 import { jobRoutes } from './routes/jobs.js'
 import { sseRoutes } from './routes/sse.js'
 import { previewRoutes } from './routes/preview.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { validateEnv } from './utils/validateEnv.js'
-import './jobs/queue.js'  // import side-effect: starts the BullMQ worker
+import './jobs/queue.js'
 
 validateEnv()
 
-const server = Fastify({ logger: { level: 'info' } })
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
+const isProd = process.env.NODE_ENV === 'production'
+
+const server = Fastify({ logger: { level: isProd ? 'warn' : 'info' } })
 
 server.setErrorHandler(errorHandler)
 
@@ -26,7 +32,6 @@ await server.register(cors, {
 
 await server.register(cookie)
 
-// Use Redis to store sessions so they survive server restarts
 const redisClient = new IORedis(process.env.REDIS_URL!, { maxRetriesPerRequest: null })
 const sessionStore = new RedisStore({ client: redisClient, prefix: 'sess:' })
 
@@ -34,10 +39,10 @@ await server.register(session, {
   secret: process.env.SESSION_SECRET!,
   store: sessionStore,
   cookie: {
-    secure: false, // must be false when not using HTTPS in development
+    secure: isProd,
     httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    sameSite: isProd ? 'strict' : 'lax',
+    maxAge: 30 * 24 * 60 * 60 * 1000,
   },
 })
 
@@ -45,6 +50,20 @@ await server.register(authRoutes,    { prefix: '/api/auth' })
 await server.register(jobRoutes,     { prefix: '/api/jobs' })
 await server.register(sseRoutes,     { prefix: '/api/progress' })
 await server.register(previewRoutes, { prefix: '/api/preview' })
+
+// In production, serve the built React app from the server.
+// In development, Vite handles the frontend on its own port.
+if (isProd) {
+  const clientDist = join(__dirname, '../../client/dist')
+  await server.register(staticFiles, {
+    root: clientDist,
+    prefix: '/',
+  })
+  // SPA fallback — any non-API route serves index.html
+  server.setNotFoundHandler((_req, reply) => {
+    reply.sendFile('index.html', clientDist)
+  })
+}
 
 server.get('/api/health', async () => ({ status: 'ok' }))
 
