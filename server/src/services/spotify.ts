@@ -65,7 +65,11 @@ export const spotifyService = {
       },
       body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken }),
     })
-    return res.json() as Promise<{ access_token: string; expires_in: number }>
+    const data = await res.json() as any
+    if (!data.access_token) {
+      throw new Error(`Spotify token refresh failed (${data.error ?? 'unknown error'}). Please disconnect and reconnect your Spotify account.`)
+    }
+    return data as { access_token: string; expires_in: number }
   },
 
   // Get a valid user token, refreshing and persisting to DB if expired

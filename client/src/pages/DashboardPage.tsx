@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/auth.ts'
 import { SettingsPanel } from '../components/SettingsPanel.tsx'
 
 export function DashboardPage() {
-  const { user, logout } = useAuthStore()
+  const { user, logout, spotifyConnected, checkSpotify } = useAuthStore()
   const { createJob } = useJobStore()
   const navigate = useNavigate()
 
@@ -17,8 +17,10 @@ export function DashboardPage() {
   const [previewLoading, setPreviewLoading] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Fetch a route preview whenever both fields have enough content.
-  // Debounced so we don't fire on every keystroke.
+  // Verify the Spotify connection is still valid when the user lands on the dashboard
+  useEffect(() => { checkSpotify() }, [checkSpotify])
+
+  // Fetch a route preview whenever both fields have enough content
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
 
@@ -69,6 +71,43 @@ export function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* Spotify reconnect banner — shown when token is confirmed invalid */}
+      {spotifyConnected === false && (
+        <div style={{
+          background: '#fff8e1',
+          border: '1px solid #ffe082',
+          borderRadius: 10,
+          padding: '16px 20px',
+          marginBottom: 24,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+        }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Spotify connection lost</div>
+            <div style={{ fontSize: 13, color: '#666' }}>
+              Your Spotify authorisation has expired or been revoked. Reconnect to generate playlists.
+            </div>
+          </div>
+          <a
+            href="/api/auth/spotify"
+            style={{
+              background: '#1db954',
+              color: 'white',
+              padding: '10px 18px',
+              borderRadius: 8,
+              fontWeight: 600,
+              fontSize: 13,
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+          >
+            Reconnect
+          </a>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -124,8 +163,16 @@ export function DashboardPage() {
 
         <button
           type="submit"
-          disabled={loading}
-          style={{ background: '#1db954', color: 'white', fontWeight: 600, fontSize: 16, padding: '14px', marginTop: 8 }}
+          disabled={loading || spotifyConnected === false}
+          style={{
+            background: spotifyConnected === false ? '#ccc' : '#1db954',
+            color: 'white',
+            fontWeight: 600,
+            fontSize: 16,
+            padding: '14px',
+            marginTop: 8,
+            cursor: spotifyConnected === false ? 'not-allowed' : 'pointer',
+          }}
         >
           {loading ? 'Creating...' : 'Generate playlist'}
         </button>

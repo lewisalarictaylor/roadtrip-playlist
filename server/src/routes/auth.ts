@@ -24,7 +24,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (!tokens.access_token) {
         req.log.error({ tokens }, 'Spotify token exchange returned no access_token')
-        return reply.redirect('http://localhost:3000?error=spotify_token_failed')
+        return reply.redirect('http://127.0.0.1:3000?error=spotify_token_failed')
       }
       req.log.info('OAuth callback: token exchange OK, fetching profile')
 
@@ -57,6 +57,35 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (err) {
       req.log.error(err, 'Spotify OAuth callback failed')
       return reply.redirect('http://127.0.0.1:3000?error=spotify_auth_failed')
+    }
+  })
+
+  // Step 3: verify Spotify connection is still valid
+  // Called by the dashboard on mount to catch revoked/expired tokens before a job starts
+  fastify.get('/spotify/status', async (req, reply) => {
+    const userId = (req.session as any).userId
+    if (!userId) return reply.status(401).send({ error: 'Not authenticated' })
+
+    const [user] = await query<{
+      id: string
+      access_token: string
+      refresh_token: string
+      token_expires_at: string
+    }>(
+      'SELECT id, access_token, refresh_token, token_expires_at FROM users WHERE id = $1',
+      [userId]
+    )
+    if (!user) return reply.status(404).send({ error: 'User not found' })
+
+    try {
+      // getValidToken will attempt a refresh if the token is near expiry.
+      // If the refresh token is also invalid (user revoked access in Spotify),
+      // it throws — we catch that and return connected: false.
+      await spotifyService.getValidToken(user)
+      return { connected: true }
+    } catch (err: any) {
+      req.log.warn({ err: err.message }, 'Spotify token invalid — user needs to reconnect')
+      return { connected: false, reason: err.message }
     }
   })
 
