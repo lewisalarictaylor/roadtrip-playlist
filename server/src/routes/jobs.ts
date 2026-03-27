@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { query } from '../db/client.js'
 import { playlistQueue } from '../jobs/queue.js'
 import { requireAuth } from '../middleware/requireAuth.js'
-// import { DEFAULT_SETTINGS } from '../../../shared/types.js' //still not clear when this will trip me up but is causing errors when not commented out
+import { DEFAULT_SETTINGS } from '../../../shared/types.ts'
 
 const createJobSchema = z.object({
   origin:      z.string().min(2).max(200),
