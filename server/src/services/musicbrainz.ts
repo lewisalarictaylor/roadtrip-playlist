@@ -26,12 +26,39 @@ async function getAreaMbid(cityName: string): Promise<string | null> {
   return data.areas?.[0]?.id ?? null
 }
 
-async function getArtistsByArea(areaMbid: string, limit = 100): Promise<any[]> {
-  // Fetch a large pool — MusicBrainz returns alphabetically, so a small limit
-  // would systematically favour artists starting with A-E over well-known acts
-  // further down the alphabet. We pre-score and trim before hitting Spotify.
-  const data = await mbFetch(`/artist?area=${areaMbid}&limit=${limit}&fmt=json&inc=tags`)
-  return data.artists ?? []
+async function getArtistsByArea(areaMbid: string): Promise<any[]> {
+  const PAGE_SIZE = 100
+  // For cities with many artists, cap total fetched to avoid excessive API calls.
+  // MusicBrainz sorts alphabetically, so beyond this we rely on pre-scoring
+  // to surface well-known acts rather than exhaustive coverage.
+  const MAX_ARTISTS = 300
+
+  // First page — also tells us the total count for the area
+  const first = await mbFetch(
+    `/artist?area=${areaMbid}&limit=${PAGE_SIZE}&offset=0&fmt=json&inc=tags`
+  )
+  const total: number = first['artist-count'] ?? 0
+  const artists: any[] = first.artists ?? []
+
+  // If the total fits in one page, or exceeds our cap, we're done
+  if (total <= PAGE_SIZE || artists.length >= MAX_ARTISTS) return artists
+
+  // Otherwise paginate until we've fetched everything (or hit the cap)
+  const pagesToFetch = Math.min(
+    Math.ceil((total - PAGE_SIZE) / PAGE_SIZE),
+    Math.ceil((MAX_ARTISTS - PAGE_SIZE) / PAGE_SIZE)
+  )
+
+  for (let page = 1; page <= pagesToFetch; page++) {
+    const offset = page * PAGE_SIZE
+    const data = await mbFetch(
+      `/artist?area=${areaMbid}&limit=${PAGE_SIZE}&offset=${offset}&fmt=json&inc=tags`
+    )
+    artists.push(...(data.artists ?? []))
+    if (artists.length >= MAX_ARTISTS) break
+  }
+
+  return artists
 }
 
 // Score an artist using only MusicBrainz data, before any Spotify calls.
