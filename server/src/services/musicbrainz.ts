@@ -26,8 +26,10 @@ async function getAreaMbid(cityName: string): Promise<string | null> {
   return data.areas?.[0]?.id ?? null
 }
 
-async function getArtistsByArea(areaMbid: string, limit = 25): Promise<any[]> {
-  // inc=tags fetches genre/style tags alongside each artist
+async function getArtistsByArea(areaMbid: string, limit = 100): Promise<any[]> {
+  // Fetch a large pool — MusicBrainz returns alphabetically, so a small limit
+  // would systematically favour artists starting with A-E over well-known acts
+  // further down the alphabet. We sort by Spotify popularity after resolving.
   const data = await mbFetch(`/artist?area=${areaMbid}&limit=${limit}&fmt=json&inc=tags`)
   return data.artists ?? []
 }
@@ -63,8 +65,9 @@ export const musicBrainzService = {
 
     const rawArtists = await getArtistsByArea(mbid)
 
-    // Resolve each artist against Spotify, using the per-job cache to avoid
-    // duplicate API calls for artists that appear near multiple cities
+    // Resolve each artist against Spotify, capturing the popularity score.
+    // We use the per-job cache to avoid duplicate Spotify calls for the same
+    // artist name appearing near multiple cities on the route.
     const results: ArtistResult[] = []
     for (const artist of rawArtists) {
       let spotifyMatch: any
@@ -77,16 +80,18 @@ export const musicBrainzService = {
       }
 
       results.push({
-        mbid:      artist.id,
-        name:      artist.name,
-        genres:    extractGenres(artist),
-        spotifyId: spotifyMatch?.id ?? null,
+        mbid:       artist.id,
+        name:       artist.name,
+        genres:     extractGenres(artist),
+        spotifyId:  spotifyMatch?.id ?? null,
         spotifyUrl: spotifyMatch?.external_urls?.spotify ?? null,
-        trackCount: 0,
+        // Spotify popularity is 0-100 based on recent stream counts.
+        // Stored so we can sort by it when selecting artists per city.
+        trackCount: spotifyMatch?.popularity ?? 0,
       })
     }
 
-    // Cache the full unfiltered result against the city MBID
+    // Cache the full unfiltered, unsorted result
     await query(
       `INSERT INTO artist_cache (city_mbid, city_name, artists)
        VALUES ($1, $2, $3)
@@ -109,6 +114,10 @@ function filterAndLimitArtists(artists: ArtistResult[], settings: JobSettings): 
       a.genres.some(g => wanted.some(w => g.includes(w) || w.includes(g)))
     )
   }
+
+  // Sort by Spotify popularity descending so the most-streamed artists
+  // from each city rise to the top, rather than whoever comes first alphabetically
+  filtered.sort((a, b) => b.trackCount - a.trackCount)
 
   return filtered.slice(0, settings.maxArtistsPerCity)
 }
