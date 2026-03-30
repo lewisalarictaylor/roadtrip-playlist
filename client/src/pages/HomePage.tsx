@@ -202,7 +202,7 @@ export function HomePage() {
             {
               step: '03',
               title: 'Artists are matched',
-              body: 'MusicBrainz tells us who's from each place. Spotify popularity decides who makes the cut.',
+              body: 'MusicBrainz tells us who\u2019s from each place. Spotify popularity decides who makes the cut.',
               accent: '#e8f5e9',
             },
             {
