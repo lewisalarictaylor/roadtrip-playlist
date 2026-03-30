@@ -281,7 +281,7 @@ NODE_ENV=production node server/dist/index.js
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 18, Vite, React Router, Zustand |
-| Backend | Node.js, Fastify 4 |
+| Backend | Node.js, Fastify 5 |
 | Job queue | BullMQ + Redis |
 | Database | PostgreSQL |
 | Route data | Google Maps Directions, Geocoding + Static Maps APIs |
