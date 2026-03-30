@@ -322,7 +322,7 @@ export function HomePage() {
         textAlign: 'center',
         fontSize: 12, color: '#aaa',
       }}>
-        Roadtrip Playlist · Built with MusicBrainz and the Spotify Web API
+        Roadtrip Playlist · Built with MusicBrainz and the Spotify Web API · <a href="/privacy" style={{ color: '#aaa' }}>Privacy Policy</a>
       </footer>
 
       <style>{`
